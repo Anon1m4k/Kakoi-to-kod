@@ -20,7 +20,7 @@ namespace OOOShoesLib
                     cmd.Parameters.AddWithValue("@login", login);
                     cmd.Parameters.AddWithValue("@password", password);
                     using (var reader = cmd.ExecuteReader())
-                    {
+                    { 
                         if (reader.Read())
                         {
                             return new Users
