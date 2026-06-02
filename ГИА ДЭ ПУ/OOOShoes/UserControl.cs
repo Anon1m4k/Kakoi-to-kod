@@ -81,20 +81,23 @@ namespace OOOShoes
 
         private void LoadImage(string photoName)
         {
-            string imageFolder = Application.StartupPath;
-            string imagePath = Path.Combine(imageFolder, photoName);
+            string imagePath = Path.Combine(Application.StartupPath, photoName);
+
+            Image LoadSafe(string path)
+            {
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read))
+                using (var img = Image.FromStream(fs))
+                {
+                    return new Bitmap(img);
+                }
+            }
 
             if (!string.IsNullOrEmpty(photoName) && File.Exists(imagePath))
-            {
-                PictureBoxPhoto.Image = Image.FromFile(imagePath);
-            }
+                PictureBoxPhoto.Image = LoadSafe(imagePath);
             else
             {
-                string defaultImage = Path.Combine(imageFolder, "picture.png");
-                if (File.Exists(defaultImage))
-                    PictureBoxPhoto.Image = Image.FromFile(defaultImage);
-                else
-                    PictureBoxPhoto.Image = null;
+                string defaultPath = Path.Combine(Application.StartupPath, "picture.png");
+                PictureBoxPhoto.Image = File.Exists(defaultPath) ? LoadSafe(defaultPath) : null;
             }
             PictureBoxPhoto.SizeMode = PictureBoxSizeMode.Zoom;
         }

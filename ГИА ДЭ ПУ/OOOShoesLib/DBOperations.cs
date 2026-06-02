@@ -8,8 +8,6 @@ namespace OOOShoesLib
     public class DBOperations
     {
         private const string ConnectionString = "server=127.0.0.1; uid=root; pwd=vertrigo; database=oooshoes;";
-
-        // Получение пользователя по логину и паролю
         public static Users GetUser(string login, string password)
         {
             try
@@ -17,337 +15,143 @@ namespace OOOShoesLib
                 using (var conn = new MySqlConnection(ConnectionString))
                 {
                     conn.Open();
-                    string query = "SELECT id, full_name, role, login, password FROM users WHERE login = @login AND password = @password";
+                    string query = "SELECT * FROM users WHERE `Логин` = @login AND `Пароль` = @password";
                     var cmd = new MySqlCommand(query, conn);
                     cmd.Parameters.AddWithValue("@login", login);
                     cmd.Parameters.AddWithValue("@password", password);
                     using (var reader = cmd.ExecuteReader())
-                    {
+                    { 
                         if (reader.Read())
                         {
                             return new Users
                             {
-                                Id = reader.GetInt32("id"),
-                                FullName = reader.GetString("full_name"),
-                                Role = reader.GetString("role"),
-                                Login = reader.GetString("login"),
-                                Password = reader.GetString("password")
+                                Id = reader.GetInt32("Id"),
+                                FullName = reader.GetString("ФИО"),
+                                Role = reader.GetString("Роль сотрудника"),
+                                Login = reader.GetString("Логин"),
+                                Password = reader.GetString("Пароль")
                             };
                         }
                     }
                 }
                 return null;
             }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in GetUser: {ex.Message}");
-                throw new Exception("Ошибка при обращении к базе данных. Проверьте подключение.", ex);
-            }
             catch (Exception ex)
             {
-                Debug.WriteLine($"General error in GetUser: {ex.Message}");
-                throw new Exception("Произошла ошибка при авторизации.", ex);
+                Debug.WriteLine($"GetUser error: {ex.Message}");
+                throw new Exception("Ошибка авторизации.", ex);
             }
         }
-        // Получение списка всех товаров
         public static List<Products> GetAllProducts()
         {
-            try
+            var products = new List<Products>();
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                var products = new List<Products>();
-                using (var conn = new MySqlConnection(ConnectionString))
+                conn.Open();
+                string query = "SELECT * FROM products";
+                var cmd = new MySqlCommand(query, conn);
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    string query = "SELECT article, name, unit, price, supplier, manufacturer, category, discount, quantity, description, photo FROM products";
-                    var cmd = new MySqlCommand(query, conn);
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            products.Add(new Products
-                            {
-                                Article = reader.GetString("article"),
-                                Name = reader.GetString("name"),
-                                Unit = reader.GetString("unit"),
-                                Price = reader.GetDecimal("price"),
-                                Supplier = reader.GetString("supplier"),
-                                Manufacturer = reader.GetString("manufacturer"),
-                                Category = reader.GetString("category"),
-                                Discount = reader.GetInt32("discount"),
-                                Quantity = reader.GetInt32("quantity"),
-                                Description = reader.GetString("description"),
-                                Photo = reader.GetString("photo")
-                            });
-                        }
-                    }
+                    while (reader.Read())
+                        products.Add(MapToProduct(reader));
                 }
-                return products;
             }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in GetAllProducts: {ex.Message}");
-                throw new Exception("Ошибка при загрузке списка товаров. Проверьте подключение к базе данных.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in GetAllProducts: {ex.Message}");
-                throw new Exception("Произошла ошибка при загрузке товаров.", ex);
-            }
+            return products;
         }
         public static Products GetProductByArticle(string article)
         {
-            try
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                using (var conn = new MySqlConnection(ConnectionString))
+                conn.Open();
+                string query = "SELECT * FROM products WHERE `Артикул` = @article";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@article", article);
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    string query = "SELECT * FROM products WHERE article = @article";
-                    var cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@article", article);
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        if (reader.Read())
-                        {
-                            return new Products
-                            {
-                                Article = reader.GetString("article"),
-                                Name = reader.GetString("name"),
-                                Unit = reader.GetString("unit"),
-                                Price = reader.GetDecimal("price"),
-                                Supplier = reader.GetString("supplier"),
-                                Manufacturer = reader.GetString("manufacturer"),
-                                Category = reader.GetString("category"),
-                                Discount = reader.GetInt32("discount"),
-                                Quantity = reader.GetInt32("quantity"),
-                                Description = reader.GetString("description"),
-                                Photo = reader.GetString("photo")
-                            };
-                        }
-                    }
+                    if (reader.Read())
+                        return MapToProduct(reader);
                 }
-                return null;
             }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in GetProductByArticle: {ex.Message}");
-                throw new Exception("Ошибка при получении данных товара. Проверьте подключение к базе данных.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in GetProductByArticle: {ex.Message}");
-                throw new Exception("Произошла ошибка при получении информации о товаре.", ex);
-            }
+            return null;
         }
         public static void AddProduct(Products product)
         {
-            try
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                using (var conn = new MySqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    string query = @"INSERT INTO products 
-                        (article, name, unit, price, supplier, manufacturer, category, discount, quantity, description, photo) 
-                        VALUES (@article, @name, @unit, @price, @supplier, @manufacturer, @category, @discount, @quantity, @description, @photo)";
-                    var cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@article", product.Article);
-                    cmd.Parameters.AddWithValue("@name", product.Name);
-                    cmd.Parameters.AddWithValue("@unit", product.Unit);
-                    cmd.Parameters.AddWithValue("@price", product.Price);
-                    cmd.Parameters.AddWithValue("@supplier", product.Supplier);
-                    cmd.Parameters.AddWithValue("@manufacturer", product.Manufacturer);
-                    cmd.Parameters.AddWithValue("@category", product.Category);
-                    cmd.Parameters.AddWithValue("@discount", product.Discount);
-                    cmd.Parameters.AddWithValue("@quantity", product.Quantity);
-                    cmd.Parameters.AddWithValue("@description", product.Description);
-                    cmd.Parameters.AddWithValue("@photo", product.Photo);
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in AddProduct: {ex.Message}");
-                if (ex.Number == 1062)
-                    throw new Exception("Товар с таким артикулом уже существует.", ex);
-                else
-                    throw new Exception("Ошибка при добавлении товара. Проверьте правильность введённых данных.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in AddProduct: {ex.Message}");
-                throw new Exception("Произошла ошибка при добавлении товара.", ex);
+                conn.Open();
+                string query = @"INSERT INTO products 
+                    (`Артикул`, `Наименование товара`, `Единица измерения`, `Цена`, `Поставщик`, `Производитель`, 
+                     `Категория товара`, `Действующая скидка`, `Кол-во на складе`, `Описание товара`, `Фото`) 
+                    VALUES (@article, @name, @unit, @price, @supplier, @manufacturer, @category, @discount, @quantity, @description, @photo)";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@article", product.Article);
+                cmd.Parameters.AddWithValue("@name", product.Name);
+                cmd.Parameters.AddWithValue("@unit", product.Unit);
+                cmd.Parameters.AddWithValue("@price", product.Price);
+                cmd.Parameters.AddWithValue("@supplier", product.Supplier);
+                cmd.Parameters.AddWithValue("@manufacturer", product.Manufacturer);
+                cmd.Parameters.AddWithValue("@category", product.Category);
+                cmd.Parameters.AddWithValue("@discount", product.Discount);
+                cmd.Parameters.AddWithValue("@quantity", product.Quantity);
+                cmd.Parameters.AddWithValue("@description", product.Description);
+                cmd.Parameters.AddWithValue("@photo", product.Photo);
+                cmd.ExecuteNonQuery();
             }
         }
-
         public static void UpdateProduct(Products product)
         {
-            try
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                using (var conn = new MySqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    string query = @"UPDATE products SET 
-                        name = @name, unit = @unit, price = @price, supplier = @supplier, 
-                        manufacturer = @manufacturer, category = @category, discount = @discount, 
-                        quantity = @quantity, description = @description, photo = @photo 
-                        WHERE article = @article";
-                    var cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@article", product.Article);
-                    cmd.Parameters.AddWithValue("@name", product.Name);
-                    cmd.Parameters.AddWithValue("@unit", product.Unit);
-                    cmd.Parameters.AddWithValue("@price", product.Price);
-                    cmd.Parameters.AddWithValue("@supplier", product.Supplier);
-                    cmd.Parameters.AddWithValue("@manufacturer", product.Manufacturer);
-                    cmd.Parameters.AddWithValue("@category", product.Category);
-                    cmd.Parameters.AddWithValue("@discount", product.Discount);
-                    cmd.Parameters.AddWithValue("@quantity", product.Quantity);
-                    cmd.Parameters.AddWithValue("@description", product.Description);
-                    cmd.Parameters.AddWithValue("@photo", product.Photo);
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in UpdateProduct: {ex.Message}");
-                throw new Exception("Ошибка при обновлении товара. Проверьте правильность введённых данных.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in UpdateProduct: {ex.Message}");
-                throw new Exception("Произошла ошибка при обновлении товара.", ex);
+                conn.Open();
+                string query = @"UPDATE products SET 
+                    `Наименование товара` = @name,
+                    `Единица измерения` = @unit,
+                    `Цена` = @price,
+                    `Поставщик` = @supplier,
+                    `Производитель` = @manufacturer,
+                    `Категория товара` = @category,
+                    `Действующая скидка` = @discount,
+                    `Кол-во на складе` = @quantity,
+                    `Описание товара` = @description,
+                    `Фото` = @photo
+                    WHERE `Артикул` = @article";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@article", product.Article);
+                cmd.Parameters.AddWithValue("@name", product.Name);
+                cmd.Parameters.AddWithValue("@unit", product.Unit);
+                cmd.Parameters.AddWithValue("@price", product.Price);
+                cmd.Parameters.AddWithValue("@supplier", product.Supplier);
+                cmd.Parameters.AddWithValue("@manufacturer", product.Manufacturer);
+                cmd.Parameters.AddWithValue("@category", product.Category);
+                cmd.Parameters.AddWithValue("@discount", product.Discount);
+                cmd.Parameters.AddWithValue("@quantity", product.Quantity);
+                cmd.Parameters.AddWithValue("@description", product.Description);
+                cmd.Parameters.AddWithValue("@photo", product.Photo);
+                cmd.ExecuteNonQuery();
             }
         }
         public static void DeleteProduct(string article)
         {
-            try
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                using (var conn = new MySqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    string query = "DELETE FROM products WHERE article = @article";
-                    var cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@article", article);
-                    cmd.ExecuteNonQuery();
-                }
-            }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in DeleteProduct: {ex.Message}");
-                throw new Exception("Ошибка при удалении товара. Возможно, товар связан с другими записями.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in DeleteProduct: {ex.Message}");
-                throw new Exception("Произошла ошибка при удалении товара.", ex);
+                conn.Open();
+                string query = "DELETE FROM products WHERE `Артикул` = @article";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@article", article);
+                cmd.ExecuteNonQuery();
             }
         }
         public static int GetOrdersByProduct(string article)
         {
-            try
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                using (var conn = new MySqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    string query = "SELECT COUNT(*) FROM order_products WHERE article = @article";
-                    var cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@article", article);
-                    return Convert.ToInt32(cmd.ExecuteScalar());
-                }
-            }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in GetOrdersByProduct: {ex.Message}");
-                throw new Exception("Ошибка при проверке наличия товара в заказах.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in GetOrdersByProduct: {ex.Message}");
-                throw new Exception("Произошла ошибка при проверке заказов.", ex);
+                conn.Open();
+                string query = "SELECT COUNT(*) FROM orders WHERE FIND_IN_SET(@article, REPLACE(`Артикул заказа`, ' ', '')) > 0";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@article", article);
+                return Convert.ToInt32(cmd.ExecuteScalar());
             }
         }
-        public static List<string> GetSuppliers()
-        {
-            try
-            {
-                var suppliers = new List<string>();
-                using (var conn = new MySqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    string query = "SELECT DISTINCT supplier FROM products ORDER BY supplier";
-                    var cmd = new MySqlCommand(query, conn);
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            suppliers.Add(reader.GetString("supplier"));
-                        }
-                    }
-                }
-                return suppliers;
-            }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in GetSuppliers: {ex.Message}");
-                throw new Exception("Ошибка при загрузке списка поставщиков.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in GetSuppliers: {ex.Message}");
-                throw new Exception("Произошла ошибка при получении списка поставщиков.", ex);
-            }
-        }
-        public static List<Products> SearchProducts(string searchText)
-        {
-            try
-            {
-                var products = new List<Products>();
-                using (var conn = new MySqlConnection(ConnectionString))
-                {
-                    conn.Open();
-                    string query = @"SELECT article, name, unit, price, supplier, manufacturer, 
-                                    category, discount, quantity, description, photo 
-                             FROM products 
-                             WHERE name LIKE @search 
-                                OR description LIKE @search 
-                                OR manufacturer LIKE @search 
-                                OR category LIKE @search";
-                    var cmd = new MySqlCommand(query, conn);
-                    cmd.Parameters.AddWithValue("@search", "%" + searchText + "%");
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            products.Add(new Products
-                            {
-                                Article = reader.GetString("article"),
-                                Name = reader.GetString("name"),
-                                Unit = reader.GetString("unit"),
-                                Price = reader.GetDecimal("price"),
-                                Supplier = reader.GetString("supplier"),
-                                Manufacturer = reader.GetString("manufacturer"),
-                                Category = reader.GetString("category"),
-                                Discount = reader.GetInt32("discount"),
-                                Quantity = reader.GetInt32("quantity"),
-                                Description = reader.GetString("description"),
-                                Photo = reader.GetString("photo")
-                            });
-                        }
-                    }
-                }
-                return products;
-            }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in SearchProducts: {ex.Message}");
-                throw new Exception("Ошибка при выполнении поиска.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in SearchProducts: {ex.Message}");
-                throw new Exception("Произошла ошибка при поиске товаров.", ex);
-            }
-        }
-
-        // Получение всех заказов с информацией о клиенте и пункте выдачи
         public static List<Orders> GetAllOrders()
         {
             var orders = new List<Orders>();
@@ -355,267 +159,158 @@ namespace OOOShoesLib
             {
                 conn.Open();
                 string query = @"
-            SELECT o.order_id, o.order_date, o.delivery_date, o.pickup_point_id, 
-                   p.address AS pickup_address, o.client_id, u.full_name AS client_name,
-                   o.pickup_code, o.status
-            FROM orders o
-            LEFT JOIN pickup_point p ON o.pickup_point_id = p.id
-            LEFT JOIN users u ON o.client_id = u.id
-            ORDER BY o.order_date DESC";
+                    SELECT o.*, p.`Адрес` AS pickup_address
+                    FROM orders o
+                    LEFT JOIN pickup_point p ON o.`Адрес пункта выдачи` = p.Id
+                    ORDER BY o.`Дата заказа` DESC";
                 var cmd = new MySqlCommand(query, conn);
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
-                    {
-                        orders.Add(new Orders
-                        {
-                            OrderId = reader.GetInt32("order_id"),
-                            OrderDate = reader.IsDBNull(reader.GetOrdinal("order_date"))
-                                            ? (DateTime?)null
-                                            : reader.GetDateTime("order_date"),
-                            DeliveryDate = reader.IsDBNull(reader.GetOrdinal("delivery_date"))
-                                            ? (DateTime?)null
-                                            : reader.GetDateTime("delivery_date"),
-                            PickupPointId = reader.GetInt32("pickup_point_id"),
-                            PickupAddress = reader["pickup_address"] as string ?? "",
-                            ClientId = reader.GetInt32("client_id"),
-                            ClientName = reader["client_name"] as string ?? "",
-                            PickupCode = reader.GetInt32("pickup_code"),
-                            Status = reader.GetString("status")
-                        });
-                    }
+                        orders.Add(MapToOrder(reader));
                 }
             }
             return orders;
         }
-
-        // Получение одного заказа по ID
         public static Orders GetOrderById(int orderId)
         {
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
                 string query = @"
-            SELECT o.order_id, o.order_date, o.delivery_date, o.pickup_point_id, 
-                   p.address AS pickup_address, o.client_id, u.full_name AS client_name,
-                   o.pickup_code, o.status
-            FROM orders o
-            LEFT JOIN pickup_point p ON o.pickup_point_id = p.id
-            LEFT JOIN users u ON o.client_id = u.id
-            WHERE o.order_id = @orderId";
+                    SELECT o.*, p.`Адрес` AS pickup_address
+                    FROM orders o
+                    LEFT JOIN pickup_point p ON o.`Адрес пункта выдачи` = p.Id
+                    WHERE o.`Номер заказа` = @orderId";
                 var cmd = new MySqlCommand(query, conn);
                 cmd.Parameters.AddWithValue("@orderId", orderId);
                 using (var reader = cmd.ExecuteReader())
                 {
                     if (reader.Read())
-                    {
-                        return new Orders
-                        {
-                            OrderId = reader.GetInt32("order_id"),
-                            OrderDate = reader.IsDBNull(reader.GetOrdinal("order_date"))
-                                            ? (DateTime?)null
-                                            : reader.GetDateTime("order_date"),
-                            DeliveryDate = reader.IsDBNull(reader.GetOrdinal("delivery_date"))
-                                            ? (DateTime?)null
-                                            : reader.GetDateTime("delivery_date"),
-                            PickupPointId = reader.GetInt32("pickup_point_id"),
-                            PickupAddress = reader["pickup_address"] as string ?? "",
-                            ClientId = reader.GetInt32("client_id"),
-                            ClientName = reader["client_name"] as string ?? "",
-                            PickupCode = reader.GetInt32("pickup_code"),
-                            Status = reader.GetString("status")
-                        };
-                    }
+                        return MapToOrder(reader);
                 }
             }
             return null;
         }
-
-        // Получение списка позиций заказа
-        public static List<OrderProducts> GetOrderItems(int orderId)
+        public static void AddOrder(Orders order)
         {
-            var items = new List<OrderProducts>();
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
-                string query = "SELECT id, order_id, article, quantity FROM order_products WHERE order_id = @orderId";
+                string query = @"
+                    INSERT INTO orders 
+                    (`Номер заказа`, `Артикул заказа`, `Дата заказа`, `Дата доставки`, `Адрес пункта выдачи`, 
+                     `Id_клиента`, `ФИО авторизированного клиента`, `Код для получения`, `Статус заказа`)
+                    VALUES (@orderId, @articleString, @orderDate, @deliveryDate, @pickupPointId,
+                            @clientId, @clientName, @pickupCode, @status)";
                 var cmd = new MySqlCommand(query, conn);
-                cmd.Parameters.AddWithValue("@orderId", orderId);
-                using (var reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        items.Add(new OrderProducts
-                        {
-                            Id = reader.GetInt32("id"),
-                            OrderId = reader.GetInt32("order_id"),
-                            Article = reader.GetString("article"),
-                            Quantity = reader.GetInt32("quantity")
-                        });
-                    }
-                }
+                cmd.Parameters.AddWithValue("@orderId", order.OrderId);
+                cmd.Parameters.AddWithValue("@articleString", order.ArticleString);
+                cmd.Parameters.AddWithValue("@orderDate", order.OrderDate?.ToString("dd.MM.yyyy") ?? "");
+                cmd.Parameters.AddWithValue("@deliveryDate", order.DeliveryDate?.ToString("dd.MM.yyyy") ?? "");
+                cmd.Parameters.AddWithValue("@pickupPointId", order.PickupPointId);
+                cmd.Parameters.AddWithValue("@clientId", order.ClientId);
+                cmd.Parameters.AddWithValue("@clientName", order.ClientName ?? "");
+                cmd.Parameters.AddWithValue("@pickupCode", order.PickupCode);
+                cmd.Parameters.AddWithValue("@status", order.Status);
+                cmd.ExecuteNonQuery();
             }
-            return items;
         }
-
-        // Добавление нового заказа (с транзакцией)
-        public static void AddOrder(Orders order, List<OrderProducts> items)
+        public static void UpdateOrder(Orders order)
         {
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
-                using (var tran = conn.BeginTransaction())
-                {
-                    try
-                    {
-                        string insertOrder = @"
-                    INSERT INTO orders (order_date, delivery_date, pickup_point_id, client_id, pickup_code, status)
-                    VALUES (@orderDate, @deliveryDate, @pickupPointId, @clientId, @pickupCode, @status);
-                    SELECT LAST_INSERT_ID();";
-                        var cmd = new MySqlCommand(insertOrder, conn, tran);
-                        cmd.Parameters.AddWithValue("@orderDate", order.OrderDate);
-                        cmd.Parameters.AddWithValue("@deliveryDate", order.DeliveryDate);
-                        cmd.Parameters.AddWithValue("@pickupPointId", order.PickupPointId);
-                        cmd.Parameters.AddWithValue("@clientId", order.ClientId);
-                        cmd.Parameters.AddWithValue("@pickupCode", order.PickupCode);
-                        cmd.Parameters.AddWithValue("@status", order.Status);
-                        int newOrderId = Convert.ToInt32(cmd.ExecuteScalar());
-
-                        foreach (var item in items)
-                        {
-                            string insertItem = "INSERT INTO order_products (order_id, article, quantity) VALUES (@orderId, @article, @quantity)";
-                            var cmdItem = new MySqlCommand(insertItem, conn, tran);
-                            cmdItem.Parameters.AddWithValue("@orderId", newOrderId);
-                            cmdItem.Parameters.AddWithValue("@article", item.Article);
-                            cmdItem.Parameters.AddWithValue("@quantity", item.Quantity);
-                            cmdItem.ExecuteNonQuery();
-                        }
-
-                        tran.Commit();
-                    }
-                    catch
-                    {
-                        tran.Rollback();
-                        throw;
-                    }
-                }
+                string query = @"
+                    UPDATE orders SET 
+                        `Артикул заказа` = @articleString,
+                        `Дата заказа` = @orderDate,
+                        `Дата доставки` = @deliveryDate,
+                        `Адрес пункта выдачи` = @pickupPointId,
+                        `Id_клиента` = @clientId,
+                        `ФИО авторизированного клиента` = @clientName,
+                        `Код для получения` = @pickupCode,
+                        `Статус заказа` = @status
+                    WHERE `Номер заказа` = @orderId";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@orderId", order.OrderId);
+                cmd.Parameters.AddWithValue("@articleString", order.ArticleString);
+                cmd.Parameters.AddWithValue("@orderDate", order.OrderDate?.ToString("dd.MM.yyyy") ?? "");
+                cmd.Parameters.AddWithValue("@deliveryDate", order.DeliveryDate?.ToString("dd.MM.yyyy") ?? "");
+                cmd.Parameters.AddWithValue("@pickupPointId", order.PickupPointId);
+                cmd.Parameters.AddWithValue("@clientId", order.ClientId);
+                cmd.Parameters.AddWithValue("@clientName", order.ClientName ?? "");
+                cmd.Parameters.AddWithValue("@pickupCode", order.PickupCode);
+                cmd.Parameters.AddWithValue("@status", order.Status);
+                cmd.ExecuteNonQuery();
             }
         }
-
-        // Обновление существующего заказа
-        public static void UpdateOrder(Orders order, List<OrderProducts> items)
-        {
-            using (var conn = new MySqlConnection(ConnectionString))
-            {
-                conn.Open();
-                using (var tran = conn.BeginTransaction())
-                {
-                    try
-                    {
-                        string updateOrder = @"
-                    UPDATE orders SET order_date = @orderDate, delivery_date = @deliveryDate,
-                           pickup_point_id = @pickupPointId, client_id = @clientId,
-                           pickup_code = @pickupCode, status = @status
-                    WHERE order_id = @orderId";
-                        var cmd = new MySqlCommand(updateOrder, conn, tran);
-                        cmd.Parameters.AddWithValue("@orderId", order.OrderId);
-                        cmd.Parameters.AddWithValue("@orderDate", order.OrderDate);
-                        cmd.Parameters.AddWithValue("@deliveryDate", order.DeliveryDate);
-                        cmd.Parameters.AddWithValue("@pickupPointId", order.PickupPointId);
-                        cmd.Parameters.AddWithValue("@clientId", order.ClientId);
-                        cmd.Parameters.AddWithValue("@pickupCode", order.PickupCode);
-                        cmd.Parameters.AddWithValue("@status", order.Status);
-                        cmd.ExecuteNonQuery();
-
-                        string deleteItems = "DELETE FROM order_products WHERE order_id = @orderId";
-                        var cmdDel = new MySqlCommand(deleteItems, conn, tran);
-                        cmdDel.Parameters.AddWithValue("@orderId", order.OrderId);
-                        cmdDel.ExecuteNonQuery();
-
-                        foreach (var item in items)
-                        {
-                            string insertItem = "INSERT INTO order_products (order_id, article, quantity) VALUES (@orderId, @article, @quantity)";
-                            var cmdItem = new MySqlCommand(insertItem, conn, tran);
-                            cmdItem.Parameters.AddWithValue("@orderId", order.OrderId);
-                            cmdItem.Parameters.AddWithValue("@article", item.Article);
-                            cmdItem.Parameters.AddWithValue("@quantity", item.Quantity);
-                            cmdItem.ExecuteNonQuery();
-                        }
-
-                        tran.Commit();
-                    }
-                    catch
-                    {
-                        tran.Rollback();
-                        throw;
-                    }
-                }
-            }
-        }
-
-        // Удаление заказа
         public static void DeleteOrder(int orderId)
         {
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
-                using (var tran = conn.BeginTransaction())
-                {
-                    try
-                    {
-                        string deleteItems = "DELETE FROM order_products WHERE order_id = @orderId";
-                        var cmdDel = new MySqlCommand(deleteItems, conn, tran);
-                        cmdDel.Parameters.AddWithValue("@orderId", orderId);
-                        cmdDel.ExecuteNonQuery();
-
-                        string deleteOrder = "DELETE FROM orders WHERE order_id = @orderId";
-                        var cmdOrd = new MySqlCommand(deleteOrder, conn, tran);
-                        cmdOrd.Parameters.AddWithValue("@orderId", orderId);
-                        cmdOrd.ExecuteNonQuery();
-
-                        tran.Commit();
-                    }
-                    catch
-                    {
-                        tran.Rollback();
-                        throw;
-                    }
-                }
+                string query = "DELETE FROM orders WHERE `Номер заказа` = @orderId";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@orderId", orderId);
+                cmd.ExecuteNonQuery();
             }
         }
-
-        // Получение списка клиентов (авторизированных пользователей)
-        public static List<Users> GetClients()
+        public static List<string> GetSuppliers()
         {
-            var clients = new List<Users>();
+            var list = new List<string>();
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
-                string query = "SELECT id, full_name FROM users WHERE role = 'Авторизированный клиент' ORDER BY full_name";
+                string query = "SELECT DISTINCT `Поставщик` FROM products ORDER BY `Поставщик`";
                 var cmd = new MySqlCommand(query, conn);
                 using (var reader = cmd.ExecuteReader())
                 {
                     while (reader.Read())
-                    {
-                        clients.Add(new Users
-                        {
-                            Id = reader.GetInt32("id"),
-                            FullName = reader.GetString("full_name")
-                        });
-                    }
+                        list.Add(reader.GetString(0));
                 }
             }
-            return clients;
+            return list;
         }
-
-        // Получение списка пунктов выдачи
+        public static List<string> GetManufacturers()
+        {
+            var list = new List<string>();
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                string query = "SELECT DISTINCT `Производитель` FROM products ORDER BY `Производитель`";
+                var cmd = new MySqlCommand(query, conn);
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                        list.Add(reader.GetString(0));
+                }
+            }
+            return list;
+        }
+        public static List<string> GetCategories()
+        {
+            var list = new List<string>();
+            using (var conn = new MySqlConnection(ConnectionString))
+            {
+                conn.Open();
+                string query = "SELECT DISTINCT `Категория товара` FROM products ORDER BY `Категория товара`";
+                var cmd = new MySqlCommand(query, conn);
+                using (var reader = cmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                        list.Add(reader.GetString(0));
+                }
+            }
+            return list;
+        }
         public static List<PickupPoints> GetPickupPoints()
         {
             var points = new List<PickupPoints>();
             using (var conn = new MySqlConnection(ConnectionString))
             {
                 conn.Open();
-                string query = "SELECT id, address FROM pickup_point ORDER BY address";
+                string query = "SELECT * FROM pickup_point ORDER BY `Адрес`";
                 var cmd = new MySqlCommand(query, conn);
                 using (var reader = cmd.ExecuteReader())
                 {
@@ -623,76 +318,97 @@ namespace OOOShoesLib
                     {
                         points.Add(new PickupPoints
                         {
-                            Id = reader.GetInt32("id"),
-                            Address = reader.GetString("address")
+                            Id = reader.GetInt32("Id"),
+                            Address = reader.GetString("Адрес")
                         });
                     }
                 }
             }
             return points;
         }
-        public static List<string> GetManufacturers()
+        public static List<Users> GetClients()
         {
-            try
+            var clients = new List<Users>();
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                var manufacturers = new List<string>();
-                using (var conn = new MySqlConnection(ConnectionString))
+                conn.Open();
+                string query = "SELECT `Id`, `ФИО` FROM users WHERE `Роль сотрудника` = 'Авторизированный клиент' ORDER BY `ФИО`";
+                var cmd = new MySqlCommand(query, conn);
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    string query = "SELECT DISTINCT manufacturer FROM products ORDER BY manufacturer";
-                    var cmd = new MySqlCommand(query, conn);
-                    using (var reader = cmd.ExecuteReader())
+                    while (reader.Read())
                     {
-                        while (reader.Read())
+                        clients.Add(new Users
                         {
-                            manufacturers.Add(reader.GetString("manufacturer"));
-                        }
+                            Id = reader.GetInt32("Id"),
+                            FullName = reader.GetString("ФИО")
+                        });
                     }
                 }
-                return manufacturers;
             }
-            catch (MySqlException ex)
-            {
-                Debug.WriteLine($"MySQL error in GetManufacturers: {ex.Message}");
-                throw new Exception("Ошибка при загрузке списка производителей.", ex);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"General error in GetManufacturers: {ex.Message}");
-                throw new Exception("Произошла ошибка при получении списка производителей.", ex);
-            }
+            return clients;
         }
-
-        public static List<string> GetCategories()
+        public static List<Products> SearchProducts(string searchText)
         {
-            try
+            var products = new List<Products>();
+            using (var conn = new MySqlConnection(ConnectionString))
             {
-                var categories = new List<string>();
-                using (var conn = new MySqlConnection(ConnectionString))
+                conn.Open();
+                string query = @"
+                    SELECT * FROM products 
+                    WHERE `Наименование товара` LIKE @search 
+                       OR `Описание товара` LIKE @search 
+                       OR `Производитель` LIKE @search 
+                       OR `Категория товара` LIKE @search";
+                var cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@search", "%" + searchText + "%");
+                using (var reader = cmd.ExecuteReader())
                 {
-                    conn.Open();
-                    string query = "SELECT DISTINCT category FROM products ORDER BY category";
-                    var cmd = new MySqlCommand(query, conn);
-                    using (var reader = cmd.ExecuteReader())
-                    {
-                        while (reader.Read())
-                        {
-                            categories.Add(reader.GetString("category"));
-                        }
-                    }
+                    while (reader.Read())
+                        products.Add(MapToProduct(reader));
                 }
-                return categories;
             }
-            catch (MySqlException ex)
+            return products;
+        }
+        private static Products MapToProduct(MySqlDataReader reader)
+        {
+            return new Products
             {
-                Debug.WriteLine($"MySQL error in GetCategories: {ex.Message}");
-                throw new Exception("Ошибка при загрузке списка категорий.", ex);
-            }
-            catch (Exception ex)
+                Article = reader.GetString("Артикул"),
+                Name = reader.GetString("Наименование товара"),
+                Unit = reader.GetString("Единица измерения"),
+                Price = reader.GetDecimal("Цена"),
+                Supplier = reader.GetString("Поставщик"),
+                Manufacturer = reader.GetString("Производитель"),
+                Category = reader.GetString("Категория товара"),
+                Discount = reader.GetInt32("Действующая скидка"),
+                Quantity = reader.GetInt32("Кол-во на складе"),
+                Description = reader.GetString("Описание товара"),
+                Photo = reader.GetString("Фото")
+            };
+        }
+        private static Orders MapToOrder(MySqlDataReader reader)
+        {
+            return new Orders
             {
-                Debug.WriteLine($"General error in GetCategories: {ex.Message}");
-                throw new Exception("Произошла ошибка при получении списка категорий.", ex);
-            }
+                OrderId = reader.GetInt32("Номер заказа"),
+                ArticleString = reader.GetString("Артикул заказа"),
+                OrderDate = ParseDate(reader, "Дата заказа"),
+                DeliveryDate = ParseDate(reader, "Дата доставки"),
+                PickupPointId = reader.GetInt32("Адрес пункта выдачи"),
+                ClientId = reader.GetInt32("Id_клиента"),
+                ClientName = reader.GetString("ФИО авторизированного клиента"),
+                PickupCode = reader.GetInt32("Код для получения"),
+                Status = reader.GetString("Статус заказа"),
+                PickupAddress = reader.IsDBNull(reader.GetOrdinal("pickup_address")) ? "" : reader.GetString("pickup_address")
+            };
+        }
+        private static DateTime? ParseDate(MySqlDataReader reader, string columnName)
+        {
+            string dateStr = reader.GetString(columnName);
+            if (DateTime.TryParseExact(dateStr, "dd.MM.yyyy", null, System.Globalization.DateTimeStyles.None, out DateTime dt))
+                return dt;
+            return null;
         }
     }
 }

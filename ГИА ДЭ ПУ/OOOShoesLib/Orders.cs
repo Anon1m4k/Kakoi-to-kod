@@ -9,6 +9,7 @@ namespace OOOShoesLib
     public class Orders
     {
         public int OrderId { get; set; }
+        public string ArticleString { get; set; }
         public DateTime? OrderDate { get; set; }
         public DateTime? DeliveryDate { get; set; }
         public int PickupPointId { get; set; }
