@@ -57,15 +57,32 @@ namespace OOOShoes
             cmbPickupPoint.SelectedValue = order.PickupPointId;
             cmbStatus.SelectedItem = order.Status;
 
-            // Загрузка позиций заказа в многострочное текстовое поле
-            var items = DBOperations.GetOrderItems(orderId);
             TextBoxArticle.Clear();
-            foreach (var item in items)
+            if (string.IsNullOrWhiteSpace(order.ArticleString))
+                return;
+
+            // Разбираем строку артикулов и количества
+            var parts = order.ArticleString
+                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .ToArray();
+
+            for (int i = 0; i < parts.Length; i++)
             {
-                TextBoxArticle.Text += $"{item.Article} {item.Quantity}{Environment.NewLine}";
+                string article = parts[i];
+                int quantity = 1;
+
+                // Если следующий элемент является числом — это количество
+                if (i + 1 < parts.Length && int.TryParse(parts[i + 1], out int q))
+                {
+                    quantity = q;
+                    i++; // пропускаем количество
+                }
+                // В любом случае выводим строку "артикул, количество"
+                TextBoxArticle.AppendText($"{article}, {quantity}{Environment.NewLine}");
             }
         }
-
+       
         private void btnSave_Click(object sender, EventArgs e)
         {
             // Валидация
@@ -80,51 +97,81 @@ namespace OOOShoes
                 return;
             }
 
-            // Парсинг позиций из TextBoxArticle
-            var items = new List<OrderProducts>();
             var lines = TextBoxArticle.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            var articleEntries = new List<string>();
+
             foreach (var line in lines)
             {
-                var parts = line.Trim().Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                // Ожидаем строку: "артикул, количество" (разделитель – запятая)
+                var parts = line.Trim().Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 if (parts.Length == 0) continue;
-                string article = parts[0];
-                int quantity = 1;
-                if (parts.Length >= 2 && !int.TryParse(parts[1], out quantity))
-                {
-                    quantity = 1; // если не число, ставим 1
-                }
-                // Проверяем существование товара
+
+                string article = parts[0].Trim();
+                if (string.IsNullOrEmpty(article))
+                    continue;
+
+                // Проверка существования товара
                 var product = DBOperations.GetProductByArticle(article);
                 if (product == null)
                 {
-                    MessageBox.Show($"Товар с артикулом '{article}' не найден.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show($"Товар с артикулом '{article}' не найден.", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     return;
                 }
-                items.Add(new OrderProducts
+
+                int quantity = 1;               
+
+                if (parts.Length >= 2 && int.TryParse(parts[1].Trim(), out int parsedQty) && parsedQty >= 1)
+                quantity = parsedQty;
+
+                if (quantity > product.Quantity)
                 {
-                    Article = article,
-                    Quantity = quantity
-                });
+                    MessageBox.Show($"Недостаточно товара на складе.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                // Добавляем пару "артикул, количество"
+                articleEntries.Add($"{article}, {quantity}");
             }
 
-            // Сбор данных заказа
+            if (articleEntries.Count == 0)
+            {
+                MessageBox.Show("Добавьте хотя бы один товар.", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            // Итоговая строка: "B320R5, 2, B320R5, 2"
+            string articleString = string.Join(", ", articleEntries);
+
+            // Определение ID заказа
+            int orderId;
+            if (_orderId.HasValue)
+                orderId = _orderId.Value;
+            else
+            {
+                var allOrders = DBOperations.GetAllOrders();
+                orderId = allOrders.Any() ? allOrders.Max(o => o.OrderId) + 1 : 1;
+            }
+
             var order = new Orders
             {
-                OrderId = _orderId ?? 0,
+                OrderId = orderId,
                 ClientId = _currentUser?.Id ?? 1,
+                ClientName = _currentUser?.FullName ?? "",
                 OrderDate = dtpOrderDate.Value,
                 DeliveryDate = dtpDeliveryDate.Value,
                 PickupPointId = (int)cmbPickupPoint.SelectedValue,
                 Status = cmbStatus.SelectedItem.ToString(),
-                PickupCode = new Random().Next(100, 999) // генерация кода получения
+                PickupCode = new Random().Next(100, 999),
+                ArticleString = articleString
             };
 
             try
             {
                 if (_orderId.HasValue)
-                    DBOperations.UpdateOrder(order, items);
+                    DBOperations.UpdateOrder(order);
                 else
-                    DBOperations.AddOrder(order, items);
+                    DBOperations.AddOrder(order);
 
                 DialogResult = DialogResult.OK;
                 Close();

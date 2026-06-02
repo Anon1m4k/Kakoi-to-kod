@@ -66,22 +66,42 @@ namespace OOOShoes
             txtDescription.Text = product.Description;
             _oldPhoto = product.Photo;
 
-            // Загрузить изображение
-            if (!string.IsNullOrEmpty(product.Photo) && File.Exists(Path.Combine(Application.StartupPath, product.Photo)))
+            string photoPath = Path.Combine(Application.StartupPath, product.Photo);
+            if (!string.IsNullOrEmpty(product.Photo) && File.Exists(photoPath))
             {
-                picPhoto.Image = Image.FromFile(Path.Combine(Application.StartupPath, product.Photo));
+                using (var fs = new FileStream(photoPath, FileMode.Open, FileAccess.Read))
+                using (var img = Image.FromStream(fs))
+                {
+                    picPhoto.Image = new Bitmap(img);
+                }
             }
             else
             {
-                picPhoto.Image = Image.FromFile(Path.Combine(Application.StartupPath, "picture.png"));
+                string defaultPath = Path.Combine(Application.StartupPath, "picture.png");
+                if (File.Exists(defaultPath))
+                {
+                    using (var fs = new FileStream(defaultPath, FileMode.Open, FileAccess.Read))
+                    using (var img = Image.FromStream(fs))
+                    {
+                        picPhoto.Image = new Bitmap(img);
+                    }
+                }
+                else picPhoto.Image = null;
             }
+            picPhoto.Tag = null; // сбрасываем метку "new"
         }
 
         private void btnSelectPhoto_Click(object sender, EventArgs e)
         {
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                picPhoto.Image = Image.FromFile(openFileDialog.FileName);
+                // Загружаем без блокировки файла
+                using (var fs = new FileStream(openFileDialog.FileName, FileMode.Open, FileAccess.Read))
+                using (var img = Image.FromStream(fs))
+                {
+                    picPhoto.Image = new Bitmap(img);
+                }
+                picPhoto.Tag = "new";
             }
         }
 
@@ -160,8 +180,8 @@ namespace OOOShoes
         }
         private string SaveImageToFile(string article)
         {
-            string imageFolder = Path.Combine(Application.StartupPath, "Images");
-            Directory.CreateDirectory(imageFolder);
+            string imageFolder = Path.Combine(Application.StartupPath);
+
 
             string extension = Path.GetExtension(openFileDialog.FileName);
             string fileName = $"{article}{extension}";
@@ -175,11 +195,10 @@ namespace OOOShoes
                     File.Delete(oldPath);
             }
 
-            // Сохраняем изображение с изменением размера до 300x200
             using (Image img = picPhoto.Image)
             {
-                int newWidth = 300;
-                int newHeight = 200;
+                int newWidth = 500;
+                int newHeight = 500;
                 using (Bitmap resized = new Bitmap(img, new Size(newWidth, newHeight)))
                 {
                     resized.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);

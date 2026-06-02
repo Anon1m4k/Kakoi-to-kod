@@ -47,8 +47,8 @@
             // 
             // FlowLayoutPanel
             // 
-            this.FlowLayoutPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
+            this.FlowLayoutPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.FlowLayoutPanel.AutoScroll = true;
             this.FlowLayoutPanel.BackColor = System.Drawing.Color.Chartreuse;
@@ -236,4 +236,3 @@
         private System.Windows.Forms.Button ButtonOrders;
     }
 }
-

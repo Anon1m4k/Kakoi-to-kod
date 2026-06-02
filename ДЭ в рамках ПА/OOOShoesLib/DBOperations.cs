@@ -7,7 +7,7 @@ namespace OOOShoesLib
 {
     public class DBOperations
     {
-        private const string ConnectionString = "server=127.0.0.1; uid=root; pwd=vertrigo; database=oooshoes;";
+        private const string ConnectionString = "server=127.0.0.1; uid=root; pwd=vertrigo; database=oooshoes1;";
 
         // Получение пользователя по логину и паролю
         public static Users GetUser(string login, string password)
